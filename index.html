@@ -16,7 +16,7 @@
 </head>
 <body>
     <h2>🎙️ Evaluador Inteligente v2</h2>
-    <div class="box"><strong>Guion:</strong> <em>"En este preciso momento, mientras yo hablo y ustedes escuchan, sus empresas están perdiendo miles de dólares en reuniones inútiles tratando de predecir si un nuevo producto va a funcionar."</em></div>
+    <div class="box"><strong>Guion:</strong> <em>"En este preciso momento, mientras yo hablo y ustedes escuchan, sus empresas están perdiendo miles de dólares en reuniones inútiles."</em></div>
     <button id="btn">Iniciar Práctica</button>
     <div class="grid">
         <div class="card">⏱️ Tiempo<div id="mTime" class="num">0s</div></div>
@@ -26,10 +26,12 @@
     </div>
     <div class="box"><h4>📊 Diagnóstico:</h4><p id="res">Presioná el botón y empezá a hablar...</p></div>
     <div id="pBox" class="plan"><h4>📋 PLAN DE ACCIÓN RECOMENDADO:</h4><div id="pList"></div></div>
-    <div id="tx" style="font-size:12px; color:#94a3b8;"></div>
+    <div id="tx" style="font-size:12px; color:#94a3b8; word-break: break-all; margin-top: 10px;"></div>
 
 <script>
     const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!Rec) alert("Tu navegador no soporta SpeechRecognition. Usá Chrome actualizado.");
+    
     const r = new Rec(); r.continuous = true; r.interimResults = true; r.lang = 'es-ES';
     let isRec = false, t0, interval, words = 0, fillers = 0, conf = [];
     const mul = ["este", "eh", "bueno", "o sea", "nada", "tipo"];
@@ -38,14 +40,21 @@
 
     btn.onclick = () => {
         if (!isRec) {
-            r.start(); isRec = true; btn.textContent = "Detener y Evaluar"; btn.classList.add('rec');
-            tx.textContent = ""; res.innerHTML = "Escuchando..."; pBox.style.display = "none";
-            t0 = Date.now(); fillers = 0; words = 0; conf = [];
-            interval = setInterval(() => { mTime.textContent = Math.floor((Date.now() - t0) / 1000) + "s"; }, 1000);
+            try {
+                r.start(); isRec = true; btn.textContent = "Detener y Evaluar"; btn.classList.add('rec');
+                tx.textContent = ""; res.innerHTML = "🎙️ Escuchando... Hablá ahora."; pBox.style.display = "none";
+                t0 = Date.now(); fillers = 0; words = 0; conf = [];
+                interval = setInterval(() => { mTime.textContent = Math.floor((Date.now() - t0) / 1000) + "s"; }, 1000);
+            } catch(e) { res.innerHTML = "❌ Error al iniciar: " + e.message; }
         } else {
             r.stop(); clearInterval(interval); isRec = false; btn.textContent = "Iniciar Práctica"; btn.classList.remove('rec');
-            setTimeout(runAi, 500);
+            setTimeout(runAi, 600);
         }
+    };
+
+    r.onerror = (event) => {
+        res.innerHTML = "⚠️ <strong>Error de Micrófono detectado:</strong> " + event.error + "<br>Asegurate de dar permisos de micrófono a Chrome en los ajustes de tu celular.";
+        clearInterval(interval); isRec = false; btn.textContent = "Iniciar Práctica"; btn.classList.remove('rec');
     };
 
     r.onresult = (e) => {
@@ -54,7 +63,7 @@
             txt += e.results[i].transcript;
             if (e.results[i].isFinal) conf.push(e.results[i].confidence);
         }
-        tx.textContent = txt;
+        tx.textContent = "Texto detectado: " + txt;
         const arr = txt.trim().split(/\s+/).filter(w => w.length > 0);
         words = arr.length;
         fillers = arr.filter(w => mul.includes(w.toLowerCase().replace(/[.,]/g,""))).length;
@@ -66,20 +75,20 @@
 
     function runAi() {
         const ppm = parseInt(mSpeed.textContent), c = parseInt(mConfidence.textContent);
-        if (words < 3) { res.innerHTML = "❌ Audio muy corto para evaluar."; return; }
+        if (words < 2) { res.innerHTML = "❌ Audio muy corto. El sistema no llegó a procesar palabras."; return; }
         
-        let d = ppm > 145 ? "🏎️ <strong>Ritmo rápido ("+ppm+" PPM):</strong> Hablás acelerado por los nervios." : "🎯 <strong>Ritmo excelente:</strong> Velocidad profesional.";
-        d += fillers > 1 ? "<br>⚠️ <strong>Muletillas:</strong> Usás palabras de relleno." : "<br>✅ <strong>Vocabulario limpio.</strong>";
+        let d = ppm > 145 ? "🏎️ <strong>Ritmo rápido:</strong> Vas muy acelerado." : "🎯 <strong>Ritmo excelente:</strong> Velocidad profesional.";
+        d += fillers > 1 ? "<br>⚠️ <strong>Muletillas:</strong> Evitá las palabras de relleno." : "<br>✅ <strong>Habla limpia.</strong>";
         d += c > 85 ? "<br>🗣️ <strong>Buena dicción.</strong>" : "<br>📻 <strong>Falta modular:</strong> Pronunciá más claro.";
         res.innerHTML = d;
 
         let p = "";
-        if (ppm > 145) p += "<p>• <strong>Anclaje físico:</strong> Presioná el dedo del pie en el suelo en cada punto para forzar pausas.</p>";
-        if (fillers > 1) p += "<p>• <strong>Silencio consciente:</strong> Cuando pienses la siguiente frase, cerrá la boca en vez de decir 'eh...'.</p>";
-        if (c <= 85) p += "<p>• <strong>Técnica del lápiz:</strong> Practicá el texto mordiendo un lápiz para abrir más la boca al hablar.</p>";
-        
+        if (ppm > 145) p += "<p>• <strong>Anclaje físico:</strong> Presioná el dedo en el suelo para frenar el ritmo.</p>";
+        if (fillers > 1) p += "<p>• <strong>Silencio consciente:</strong> Cerrá la boca en vez de decir 'eh...'.</p>";
+        if (c <= 85) p += "<p>• <strong>Técnica del lápiz:</strong> Practicá el texto mordiendo un lápiz.</p>";
         if (p) { pList.innerHTML = p; pBox.style.display = "block"; }
     }
 </script>
 </body>
 </html>
+
