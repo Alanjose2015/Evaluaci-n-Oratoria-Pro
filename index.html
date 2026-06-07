@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oratoria IA</title>
+    <style>
+        body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; text-align: center; }
+        .box { background: #1e293b; padding: 15px; border-radius: 8px; margin: 10px 0; text-align: left; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 10px 0; }
+        .card { background: #1e293b; padding: 10px; border-radius: 8px; }
+        .num { font-size: 20px; font-weight: bold; color: #3b82f6; }
+        button { width: 100%; padding: 12px; font-weight: bold; border-radius: 20px; border: none; background: #10b981; color: white; }
+        button.rec { background: #ef4444; }
+        .plan { background: #172554; border-left: 4px solid #3b82f6; padding: 10px; margin-top: 10px; display: none; }
+    </style>
+</head>
+<body>
+    <h2>🎙️ Evaluador Inteligente v2</h2>
+    <div class="box"><strong>Guion:</strong> <em>"En este preciso momento, mientras yo hablo y ustedes escuchan, sus empresas están perdiendo miles de dólares en reuniones inútiles tratando de predecir si un nuevo producto va a funcionar."</em></div>
+    <button id="btn">Iniciar Práctica</button>
+    <div class="grid">
+        <div class="card">⏱️ Tiempo<div id="mTime" class="num">0s</div></div>
+        <div class="card">⚡ Ritmo (PPM)<div id="mSpeed" class="num">0</div></div>
+        <div class="card">⚠️ Muletillas<div id="mFillers" class="num">0</div></div>
+        <div class="card">🎯 Claridad<div id="mConfidence" class="num">0%</div></div>
+    </div>
+    <div class="box"><h4>📊 Diagnóstico:</h4><p id="res">Presioná el botón y empezá a hablar...</p></div>
+    <div id="pBox" class="plan"><h4>📋 PLAN DE ACCIÓN RECOMENDADO:</h4><div id="pList"></div></div>
+    <div id="tx" style="font-size:12px; color:#94a3b8;"></div>
+
+<script>
+    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const r = new Rec(); r.continuous = true; r.interimResults = true; r.lang = 'es-ES';
+    let isRec = false, t0, interval, words = 0, fillers = 0, conf = [];
+    const mul = ["este", "eh", "bueno", "o sea", "nada", "tipo"];
+
+    const btn = document.getElementById('btn'), mTime = document.getElementById('mTime'), mSpeed = document.getElementById('mSpeed'), mFillers = document.getElementById('mFillers'), mConfidence = document.getElementById('mConfidence'), res = document.getElementById('res'), pBox = document.getElementById('pBox'), pList = document.getElementById('pList'), tx = document.getElementById('tx');
+
+    btn.onclick = () => {
+        if (!isRec) {
+            r.start(); isRec = true; btn.textContent = "Detener y Evaluar"; btn.classList.add('rec');
+            tx.textContent = ""; res.innerHTML = "Escuchando..."; pBox.style.display = "none";
+            t0 = Date.now(); fillers = 0; words = 0; conf = [];
+            interval = setInterval(() => { mTime.textContent = Math.floor((Date.now() - t0) / 1000) + "s"; }, 1000);
+        } else {
+            r.stop(); clearInterval(interval); isRec = false; btn.textContent = "Iniciar Práctica"; btn.classList.remove('rec');
+            setTimeout(runAi, 500);
+        }
+    };
+
+    r.onresult = (e) => {
+        let txt = '';
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+            txt += e.results[i].transcript;
+            if (e.results[i].isFinal) conf.push(e.results[i].confidence);
+        }
+        tx.textContent = txt;
+        const arr = txt.trim().split(/\s+/).filter(w => w.length > 0);
+        words = arr.length;
+        fillers = arr.filter(w => mul.includes(w.toLowerCase().replace(/[.,]/g,""))).length;
+        mFillers.textContent = fillers;
+        const m = (Date.now() - t0) / 60000;
+        if (m > 0.04) mSpeed.textContent = Math.round(words / m);
+        if (conf.length > 0) mConfidence.textContent = Math.round((conf.reduce((a,b)=>a+b,0)/conf.length)*100) + "%";
+    };
+
+    function runAi() {
+        const ppm = parseInt(mSpeed.textContent), c = parseInt(mConfidence.textContent);
+        if (words < 3) { res.innerHTML = "❌ Audio muy corto para evaluar."; return; }
+        
+        let d = ppm > 145 ? "🏎️ <strong>Ritmo rápido ("+ppm+" PPM):</strong> Hablás acelerado por los nervios." : "🎯 <strong>Ritmo excelente:</strong> Velocidad profesional.";
+        d += fillers > 1 ? "<br>⚠️ <strong>Muletillas:</strong> Usás palabras de relleno." : "<br>✅ <strong>Vocabulario limpio.</strong>";
+        d += c > 85 ? "<br>🗣️ <strong>Buena dicción.</strong>" : "<br>📻 <strong>Falta modular:</strong> Pronunciá más claro.";
+        res.innerHTML = d;
+
+        let p = "";
+        if (ppm > 145) p += "<p>• <strong>Anclaje físico:</strong> Presioná el dedo del pie en el suelo en cada punto para forzar pausas.</p>";
+        if (fillers > 1) p += "<p>• <strong>Silencio consciente:</strong> Cuando pienses la siguiente frase, cerrá la boca en vez de decir 'eh...'.</p>";
+        if (c <= 85) p += "<p>• <strong>Técnica del lápiz:</strong> Practicá el texto mordiendo un lápiz para abrir más la boca al hablar.</p>";
+        
+        if (p) { pList.innerHTML = p; pBox.style.display = "block"; }
+    }
+</script>
+</body>
+</html>
